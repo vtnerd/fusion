@@ -20,46 +20,71 @@
 ///////////////////////////////////////////////////////////////////////////////
 // C++11 interface
 ///////////////////////////////////////////////////////////////////////////////
+#include <boost/core/enable_if.hpp>
 #include <boost/fusion/container/vector/vector.hpp>
 #include <boost/fusion/sequence/intrinsic/size.hpp>
 #include <boost/fusion/sequence/intrinsic/value_at.hpp>
 #include <boost/fusion/sequence/intrinsic/at.hpp>
 #include <boost/fusion/sequence/comparison.hpp>
 #include <boost/fusion/sequence/io.hpp>
+#include <boost/fusion/support/detail/and.hpp>
+#include <boost/fusion/support/detail/is_conversion_assignment.hpp>
+#include <boost/type_traits/is_convertible.hpp>
 #include <utility>
 
 namespace boost { namespace fusion
 {
     template <typename ...T>
-    struct tuple : vector<T...>
+    struct tuple : vector_detail::base<T...>::type
     {
-        typedef vector<T...> base_type;
+        typedef typename vector_detail::base<T...>::type base_type;
 
         BOOST_CONSTEXPR BOOST_FUSION_GPU_ENABLED
         tuple()
             : base_type() {}
 
-        template <typename ...U>
+        template <
+            typename ...U
+          , typename = typename boost::enable_if<
+                fusion::detail::and_<is_convertible<U, T>...>
+            >::type
+        >
         BOOST_CONSTEXPR BOOST_FUSION_GPU_ENABLED
         tuple(tuple<U...> const& other)
             : base_type(other) {}
 
-        template <typename ...U>
+        template <
+            typename ...U
+          , typename = typename boost::enable_if<
+                fusion::detail::and_<is_convertible<U, T>...>
+            >::type
+        >
         BOOST_CONSTEXPR BOOST_FUSION_GPU_ENABLED
         tuple(tuple<U...>&& other)
             : base_type(std::move(other)) {}
 
-        template <typename ...U>
+        template <
+            typename ...U
+          , typename = typename boost::enable_if<
+                fusion::detail::and_<is_convertible<U, T>...>
+            >::type
+        >
         /*BOOST_CONSTEXPR*/ BOOST_FUSION_GPU_ENABLED
         explicit
         tuple(U&&... args)
-            : base_type(std::forward<U>(args)...) {}
+            : base_type(vector_detail::each_elem(), std::forward<U>(args)...) {}
 
-        template <typename U>
-        BOOST_CXX14_CONSTEXPR BOOST_FUSION_GPU_ENABLED
-        tuple& operator=(U&& rhs)
+        template<typename ...U>
+        tuple& operator=(tuple<U...> const& rhs)
         {
-            base_type::operator=(std::forward<U>(rhs));
+            base_type::assign(rhs);
+            return *this;
+        }
+
+        template<typename ...U>
+        tuple& operator=(tuple<U...>&& rhs)
+        {
+            base_type::assign(std::move(rhs));
             return *this;
         }
     };
